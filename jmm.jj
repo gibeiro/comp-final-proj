@@ -1,0 +1,161 @@
+options{
+	LOOKAHEAD=1;
+}
+
+PARSER_BEGIN(jmm)
+
+public class jmm{
+    static final String USAGE =
+    "Usage:" +
+    "\tjava jmm [-r=<num>] [-o] <input_file.jmm>\n" +
+    "\tjava –jar jmm.jar [-r=<num>] [-o] <input_file.jmm>";
+
+
+    public static void main(){
+        System.out.println(USAGE);
+    }
+
+    static void lexicalAnalysis(){
+
+    }
+
+    static void syntacticAnalysis(){
+
+    }
+
+    static void semanticAnalysis(){
+
+    }
+
+    static void codeGeneration(){
+
+    }
+}
+
+PARSER_END(jmm)
+
+SKIP: {" "|"\t"|"\n"|"\r"}
+
+SKIP: {< "//" (~["\r","\n"])* >}
+SKIP: {<"/*"> : MULTI_LINE_COMMENT}
+<MULTI_LINE_COMMENT> SKIP: { "*/" : DEFAULT}
+
+TOKEN: {"import"}
+TOKEN: {";"}
+TOKEN: {"class"}
+TOKEN: {"extends"}
+TOKEN: {"{"}
+TOKEN: {"}"}
+TOKEN: {"public"}
+TOKEN: {"static"}
+TOKEN: {"void"}
+TOKEN: {"main"}
+TOKEN: {"String"}
+TOKEN: {"("}
+TOKEN: {")"}
+TOKEN: {","}
+TOKEN: {"return"}
+TOKEN: {"int"}
+TOKEN: {"["}
+TOKEN: {"]"}
+TOKEN: {"boolean"}
+TOKEN: {"if"}
+TOKEN: {"else"}
+TOKEN: {"while"}
+TOKEN: {"="}
+TOKEN: {<OPERATOR: "&&" | "<" | "+" | "-" | "*" | "/">}
+TOKEN: {"true"}
+TOKEN: {"false"}
+TOKEN: {"this"}
+TOKEN: {"new"}
+TOKEN: {"!"}
+TOKEN: {"length"}
+
+TOKEN:{<INTEGER:(["0"-"9"])+>}
+TOKEN:{<IDENTIFIER: ["_", "$", "a"-"z", "A"-"Z"] (["_", "$", "0"-"9", "a"-"z", "A"-"Z"])*>}
+TOKEN:{<COMPLETE:"">}
+
+void Program():{}{
+    ImportDeclaration()
+    ClassDeclaration()
+    <EOF>
+}
+
+void ImportDeclaration():{}{
+    ("import" <COMPLETE> ";")*
+}
+
+void ClassDeclaration():{}{
+    "class" Identifier() ("extends" Identifier())? "{"
+        (VarDeclaration())*
+        (MethodDeclaration())*
+    "}"
+}
+
+void VarDeclaration():{}{
+    Type() Identifier() ";"
+}
+
+void MethodDeclaration():{}{
+    "public"(
+        ("static" "void" "main"
+        "(" "String" "[" "]" Identifier() ")" "{"
+            (VarDeclaration())*
+            Statement()
+        "}") |
+        (Type() Identifier()
+        "(" (Type() Identifier() ("," Type() Identifier())*)? ")" "{"
+            (VarDeclaration())*
+            (Statement())*
+            "return" Expression() ";"
+        "}")
+    )
+}
+
+void Type():{}{
+    ("int" "[" "]") |
+    "boolean" |
+    "int" |
+    Identifier()
+}
+
+void Statement():{}{
+    ("{" (Statement())* "}") |
+    ("if" "(" Expression() ")" Statement() "else" Statement()) |
+    ("while" "(" Expression() ")" Statement()) |
+    (Expression() ";") |
+    (Identifier()
+        (("=" Expression() ";") |
+        ("[" Expression() "]" "=" Expression() ";"))
+    )
+}
+
+void Expression():{}{
+    (Value() (
+        (<OPERATOR> Expression()) |
+        ("[" Expression() "]") |
+        ("." (
+            "length" |
+            (Identifier() "(" (Expression() ("," Expression())*)?)
+        ))
+    )) |
+    IntegerLiteral() |
+    "true" |
+    "false" |
+    Identifier() |
+    "this" |
+    ("new" (
+        ("int" "[" Expression() "]") |
+        (Identifier() "(" ")")
+    )) |
+    ("!" Expression()) |
+    ("(" Expression() ")")
+}
+
+void Identifier():{}{
+    <IDENTIFIER>
+}
+
+void IntegerLiteral():{}{
+    <INTEGER>
+}
