@@ -1,0 +1,1 @@
+./sh/jjtree -OUTPUT_DIRECTORY:"src/" src/jmm.jjt && .sh/javacc -OUTPUT_DIRECTORY:"src/" src/jmm && javac -d bin src/*.java & java -cp bin/ jmm  res/test.jmm
