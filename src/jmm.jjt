@@ -1,0 +1,331 @@
+options{
+    LOOKAHEAD = 1;
+    BUILD_NODE_FILES = false;
+}
+
+PARSER_BEGIN(jmm)
+
+public class jmm{
+
+    static final String USAGE =
+    "Usage:\n" +
+    "\tjava jmm [-r=<num>] [-o] <input_file.jmm>\n" +
+    "\tjava –jar jmm.jar [-r=<num>] [-o] <input_file.jmm>";
+
+    static jmm parser;
+    static SimpleNode root;
+
+    public static void main(String[] args){
+        try{
+
+            if(args.length < 1){
+                System.out.println(USAGE);
+                return;
+            }
+
+            System.out.print("Lexical analysis ...");
+            LexicalAnalysis(args[0]);
+            System.out.print(" DONE!\n");
+
+            System.out.print("Syntactic analysis ...");
+            SyntacticAnalysis();
+            System.out.print(" DONE!\n");
+            root.dump("");
+
+            System.out.print("Semantic analysis ...");
+            SemanticAnalysis();
+            System.out.print(" DONE!\n");
+            
+        } catch(Exception e){
+            e.printStackTrace();
+        }      
+    }
+
+    static void LexicalAnalysis(String path) throws Exception{
+        parser = new jmm(new java.io.FileReader(path));
+    }
+
+    static void SyntacticAnalysis() throws Exception{
+        root = parser.Program();
+    }
+
+    static void SemanticAnalysis() throws Exception{
+
+    }
+}
+
+PARSER_END(jmm)
+
+SKIP: {" "}
+SKIP: {"\t"}
+SKIP: {"\n"}
+SKIP: {"\r"}
+
+SKIP: {"//":SINGLE_LINE_COMMENT}
+<SINGLE_LINE_COMMENT> SKIP: {"\r" :DEFAULT}
+<SINGLE_LINE_COMMENT> SKIP: {"\n" :DEFAULT}
+<SINGLE_LINE_COMMENT> SKIP: {<~[]>}
+
+SKIP: {"/*" : MULTI_LINE_COMMENT}
+<MULTI_LINE_COMMENT> SKIP: {"*/" :DEFAULT}
+<MULTI_LINE_COMMENT> SKIP: {<~[]>}
+
+TOKEN:{<INTEGER:("-")?(["0"-"9"])+>}
+
+TOKEN: {"["}
+TOKEN: {"]"}
+
+TOKEN: {"{"}
+TOKEN: {"}"}
+
+TOKEN: {"("}
+TOKEN: {")"}
+
+TOKEN: {"!"}
+TOKEN: {"*"}
+TOKEN: {"+"}
+TOKEN: {","}
+TOKEN: {"-"}
+TOKEN: {"/"}
+TOKEN: {";"}
+TOKEN: {"<"}
+TOKEN: {"="}
+TOKEN: {"&&"}
+
+TOKEN: {"import"}
+TOKEN: {"class"}
+TOKEN: {"extends"}
+TOKEN: {"public"}
+TOKEN: {"static"}
+TOKEN: {"void"}
+TOKEN: {"main"}
+
+TOKEN: {"if"}
+TOKEN: {"else"}
+TOKEN: {"while"}
+
+TOKEN: {<INT:"int">}
+TOKEN: {<BOOLEAN:"boolean">}
+TOKEN: {<STRING:"String">}
+
+TOKEN: {"new"}
+TOKEN: {"length"}
+TOKEN: {"return"}
+TOKEN: {<THIS:"this">}
+
+TOKEN: {<TRUE:"true">}
+TOKEN: {<FALSE:"false">}
+
+TOKEN:{<IDENTIFIER: ["_", "$", "a"-"z", "A"-"Z"] (["_", "$", "0"-"9", "a"-"z", "A"-"Z"])*>}
+
+SimpleNode Program()#PROG:{}{    
+    (ImportDeclaration())*
+    ClassDeclaration()
+    <EOF>
+    {return jjtThis;}
+}
+
+void ImportDeclaration()#IMPORT:{}{    
+    "import" (StaticKeyword())? Identifier() (MemberOperation())* ";"
+}
+
+void Extends()#EXT:{}{
+    "extends" ((",")? Identifier())+
+}
+
+void ClassDeclaration()#CLASS:{}{    
+    "class" Identifier() (Extends())? "{"
+        (VarDeclaration())*
+        (MethodDeclaration())*
+    "}"
+}
+
+void VarDeclaration()#VAR:{}{    
+    Type() (ArrayOperation())? Identifier() ";"
+}
+
+void Parameter()#PARAM:{}{
+    (",")? Type() (ArrayOperation())? Identifier()
+}
+
+void MethodDeclaration()#void:{}{    
+    "public" (Main() | Method())
+}
+
+void Main()#MAIN:{}{
+    "static" "void" "main"
+    "(" Parameter() ")" "{"
+        (LOOKAHEAD(2) VarDeclaration())*
+        (Statement())*
+    "}"
+}
+
+void Method()#METHOD:{}{
+    Type() Identifier()
+    "(" (Parameter())* ")" "{"
+        (LOOKAHEAD(2) VarDeclaration())*
+        (Statement())*
+        Return()
+    "}"
+}
+
+void Return()#RETURN:{}{    
+    "return" Expression() ";"
+}
+
+void Type()#TYPE:{Token t;}{    
+    t = <INT> | t = <BOOLEAN> | t = <STRING> | t = <IDENTIFIER>
+    {jjtThis.value = t.image;}
+}
+
+void Statement()#void:{}{    
+    BlockStatement() |    
+    WhileStatement() |
+    IfStatement() |
+    (Expression() ";")
+}
+
+void BlockStatement()#BLOCK:{}{    
+    "{" (Statement())* "}"
+}
+
+void IfStatement()#IF:{}{    
+    "if" "(" Expression() ")" Statement() "else" Statement()
+}
+
+void WhileStatement()#WHILE:{}{    
+    "while" "(" Expression() ")" Statement()
+}
+
+void Precedence0()#void:{}{    
+    IntegerLiteral() |
+    BooleanLiteral() |    
+    ThisKeyword() |
+    Identifier() |
+    ("(" Expression() ")")
+
+}
+
+void Precedence1()#void:{}{   
+    Precedence0()
+}
+
+void Precedence2()#void:{}{   
+    Precedence1() (
+        LOOKAHEAD(2)
+        CallOperation() | 
+        SubscriptOperation() |       
+        MemberOperation()
+    )*
+}
+
+void Precedence3()#void:{}{  
+    NotOperation()
+}
+
+void Precedence4()#void:{}{
+    Precedence3() | NewOperation()
+}
+
+void Precedence5()#void:{}{
+    Precedence4() (MulOperation() | DivOperation())*
+}
+
+void Precedence6()#void:{}{
+    Precedence5() (AddOperation() | SubOperation())*
+}
+
+void Precedence7()#void:{}{    
+    Precedence6() (LessThanOperation())?
+}
+
+void Precedence8()#void:{}{    
+    Precedence7() (AndOperation())*
+}
+
+void Precedence9()#void:{}{    
+    Precedence8() (AssignOperation())?
+}
+
+void Expression()#void:{}{    
+    Precedence9()
+}
+
+void AssignOperation()#STORE(2):{}{
+    "=" Precedence8()
+}
+
+void AddOperation()#ADD(2):{}{
+    "+" Precedence5()
+}
+
+void SubOperation()#SUB(2):{}{    
+    "-" Precedence5()
+}
+
+void MulOperation()#MUL(2):{}{    
+    "*" Precedence4()
+}
+
+void DivOperation()#DIV(2):{}{    
+    "/" Precedence4()
+}
+
+void AndOperation()#AND(2):{}{    
+    "&&" Precedence7()
+}
+
+void LessThanOperation()#LESS(2):{}{    
+    "<" Precedence6()
+}
+
+void NotOperation()#void:{}{
+    ("!" NotOperation() #NOT(true)) | Precedence2()
+}
+
+void NewOperation()#NEW:{}{
+    "new" Type() (SubscriptOperation() | CallOperation())
+}
+
+void SubscriptOperation()#ARRAY(2):{}{
+    "[" Expression() "]"
+}
+
+void ArrayOperation()#ARRAY(1):{}{
+    "[" "]"
+}
+
+void CallOperation()#CALL(2):{}{
+    "(" Expression() ("," Expression())* #ARGS(true) ")"
+}
+
+void MemberOperation()#MEMBER(2):{}{
+    "." (Precedence1() | LengthKeyword())
+}
+
+void Identifier()#ID:{Token t;}{    
+    t = <IDENTIFIER>
+    {jjtThis.value = t.image;}
+}
+
+void BooleanLiteral()#BOOL:{Token t;}{    
+    t = <TRUE> | t = <FALSE>
+    {jjtThis.value = t.image;}
+}
+
+void IntegerLiteral()#INT:{Token t;}{    
+    t = <INTEGER>
+    {jjtThis.value = t.image;}
+}
+
+void ThisKeyword() #THIS:{}{    
+    "this"
+}
+
+void LengthKeyword()#LENGTH:{}{    
+    "length"
+}
+
+void StaticKeyword()#STATIC:{}{    
+    "static"
+}
