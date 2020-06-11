@@ -1,9 +1,17 @@
+/* TURN ON JAVA SYNTAX HIGHLIGHT FOR BEST EXPERIENCE. */
+
 options{
     LOOKAHEAD = 1;
-    BUILD_NODE_FILES = false;
+    BUILD_NODE_FILES = true;
 }
 
 PARSER_BEGIN(jmm)
+
+import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Set;
+import java.util.Map;
+
 
 public class jmm{
 
@@ -14,6 +22,7 @@ public class jmm{
 
     static jmm parser;
     static SimpleNode root;
+    static Map symbolTable;
 
     public static void main(String[] args){
         try{
@@ -30,28 +39,241 @@ public class jmm{
             System.out.print("Syntactic analysis ...");
             SyntacticAnalysis();
             System.out.print(" DONE!\n");
-            root.dump("");
+            // root.dump("");
 
-            System.out.print("Semantic analysis ...");
-            SemanticAnalysis();
-            System.out.print(" DONE!\n");
+            // System.out.print("Semantic analysis ...");
+            // SemanticAnalysis();
+            // System.out.print(" DONE!\n");
+
+
             
         } catch(Exception e){
-            e.printStackTrace();
+            //e.printStackTrace();
+            System.out.println(e.getMessage());
         }      
     }
 
+    /*
+    Lexical Analysis checks if all the words and symbols in a piece of code are recognized by the language.
+    It turns the piece of code into and array of tokens. A token is the a basic string that the language recognizes.
+
+    Eg. the line of code code
+        'intVar = 2 * (1 + 3);'
+    after lexical analysis, turns into the array of tokens
+        ["intVar", "=", "2", "*", "(", "1", "+", "3", ")", ";"]
+    */
     static void LexicalAnalysis(String path) throws Exception{
         parser = new jmm(new java.io.FileReader(path));
     }
 
+    /*
+    Synctactic Analysis checks if the order of the tokens in a piece of code
+    follows the grammar rules of the language (Figure 2 in ../doc/project.pdf).
+    It turns a array of tokens into a tree structure called the AST - Abstract Syntax Tree.
+
+    Eg. the array of tokens 
+        ["intVar", "=", "2", "*", "(", "1", "+", "3", ")", ";"]
+    after synctatic analysis, turns into the AST
+        STORE               -> from the "=" token
+            ID              -> from the "intVar" token, that is the id/name of a variable
+            MULT            -> from the "*" token
+                INT         -> from the "2" token
+                SUM         -> from the "+" token
+                    INT     -> from the "1" token
+                    INT     -> from the "3" token
+    */
     static void SyntacticAnalysis() throws Exception{
         root = parser.Program();
     }
 
-    static void SemanticAnalysis() throws Exception{
+    // dfs(node){
+    //     for(child : node)
+    //         dfs(child)
+    //     switch(node.type){
+    //         type "CLASS":
+    //         ClassSEmanticAnalysis(child);
+    //         break;
+
+    //         type "CLASS":
+    //         ClassSEmanticAnalysis(child);
+    //         break;
+    //         ...
+    //     }
+    // }
+
+    /*
+    Semantic Analysis checks if the meaning of the code can be accepted by the language:
+        * If a variable you're trying to use already has a value assigned; (Eg. 'int foo; int bar = foo + 1;')
+        * If a variable you're trying to declare already exists; (Eg. 'int foo; int foo;')
+        * If a function you're trying to call exists;
+        * If you're giving the enough arguments to call a function; (Eg. 'int func(int i){...} func();')
+        * If said arguments are of the correct type; (Eg. 'int func(int i){...}  func("whomstd");')
+        * If you're trying to assign to a variable something of a different type; (Eg. 'String var = 1;')
+        * ETC, ETC ETC, ... pretty much every rule you can think of to make the code actually work.
+    It receives a Abstract Syntax Tree and turns it into jasmin code.    
+    */
+
+    /*    
+    public static void SemanticAnalysis() throws Exception{
+        symbolTable = new HashMap<String,Object[]>();
+
+        // ID type [params]* [super]*
+        symbolTable.put("int",new Object[]{"type",new Object[0],new Object[0]});
+        symbolTable.put("String",new Object[]{"type",new Object[0],new Object[0]});
+        symbolTable.put("boolean",new Object[]{"type",new Object[0],new Object[0]});
+
+        ProgSemanticAnalysis(root, new HashSet<String>());
+    }
+    
+    
+
+    private static void ProgSemanticAnalysis(SimpleNode node, Set parentSymbols) throws Exception{
+        Set symbols = new HashSet<String>(parentSymbols);
+        int nrChildren = node.jjtGetNumChildren();
+
+        for(int i = 0; i < nrChildren; i++){
+            SimpleNode child = (SimpleNode)node.jjtGetChild(i);
+            String childType = child.name;
+
+            switch(childType){
+                case "CLASS":
+                ClassASemanticAnalysis(child,symbols);
+                break;
+
+                case "IMPORT":
+                ImportSemanticAnalysis(child,symbols);
+                break;
+            }
+        }
+    }
+    
+
+    private static void ClassSemanticAnalysis(SimpleNode node, Set parentSymbols) throws Exception{
+        Set symbols = new HashSet<String>(parentSymbols);
+        Object[] info = {"type", new String[0],new String[0]};
+        int numChildren = node.jjtGetNumChildren();
+        String className;
+
+        boolean finishedVarDeclarations = false;
+
+        for(int i = 0; i < numChildren; i++){
+            SimpleNode child = (SimpleNode)node.jjtGetChild(i);
+            String nodeType = child.name;     
+
+            switch(nodeType){
+
+                case "ID":
+                    className = child.value;
+                    if(symbolTable.containsKey(className)) throw new Exception(String.format("Name '%s' already in use!",className));
+                break;
+
+                case "EXT":
+                    int numExtendedClasses = child.jjtGetNumChildren();
+                    info[1] = new String[numExtendedClasses];
+                    for(int j = 0; j < numExtendedClasses; j++){
+                        SimpleNode extendedClassNode = child.jjtGetChild(j);
+                        String extendedClassName = extendedClassNode.value;
+                        info[1][j] = extendedClassName;
+                        symbolTable.put(extendedClassName, new Object[]{"type",new Object[0],new Object[0]});
+                    }                        
+                break;
+
+                case "METHOD":
+                    if(!finishedVarDeclarations){
+                        finishedVarDeclarations = true;
+                        symbolTable.put(className,info);
+                    }
+                    MethodSemanticAnalysis(child, symbols);
+                break;
+
+                case "MAIN":
+                    if(!finishedVarDeclarations){
+                        finishedVarDeclarations = true;
+                        symbolTable.put(className,info);
+                    }
+                    MainSemanticAnalysis(child, symbols);
+                break;
+
+                case "VAR":
+                    SimpleNode varTypeNode = child.jjtGetChild(0);
+                    SimpleNode varNameNode = child.jjtGetChild(1);
+                    
+                    String varName = varNameNode.value;
+                    if(symbols.contains(varName)) throw new Exception(String.format("Variable '%s' already exists!",varName));
+                    if(symbolTable.containsKey(varName)) throw new Exception(String.format("Name '%s' already in use!",varName));
+
+                    String varType = varTypeNode.value;
+                    boolean isArray = false;
+                    if(varTypeNode.name.equals("ARRAY")){
+                        isArray = true;
+                        varType = varTypeNode.jjtGetChild(0).value;
+                    }
+                    if(!symbolTable.containsKey(varType)) throw new Exception(String.format("Unknown type: '%s'!",varType));
+
+                    Object[] info = new Object[]{"var",varType,isArray,false};
+                    symbolTable.put(varName,info);
+                    symbols.add(varName);
+                break;
+            }
+        }
+    }
+    
+
+    private static void MethodSemanticAnalysis(Node node, Set parentSymbols) throws Exception{
+        Set symbols = new HashSet<String>(parentSymbols);
+        int nrChildren = node.jjtGetNumChildren();
+        int childIndex = 0;
+        SimpleNode child = node.jjtGetChild(childIndex++);
+
+        for(int i = 0; i < nrChildren; i++){
+            SimpleNode child = node.jjtGetChild(i);
+            String nodeType = child.name;
+            
+
+            switch(nodeType){
+                case "PARAM":
+                    String paramType = child.jjtGetChild(0).value;
+                    String paramId = child.jjtGetChild(1).value;
+                    addSymbol(paramId,new Object[]{paramType});
+                break;
+
+                case "VAR":
+                break;
+
+                default:
+                break;
+            }
+
+        }
+
+        while(true){
+            SimpleNode child = node.jjtGetChild(childIndex++);
+            if(!child.name.equals("PARAM")) break;
+
+        }
+
+        String childType = child.name;
+
+        if(child.name.equals("PARAM"))
+        addSymbol("");
+        Object[] info = {"func",};
+        String methodType = node.name;
 
     }
+
+    private static void MainSemanticAnalysis(Node node, Set parentSymbols) throws Exception{
+        Set symbols = new HashSet<String>(parentSymbols);
+        Object[] info = {"func", null};
+        String methodType = node.name;
+
+    }
+
+    private static void addSymbol(String id, Object[] info) throws Exception{
+        if(symbolTable.containsKey(id))
+            throw new Exception(String.format("Identifier '%s' already in use.",id));
+        symbolTable.put(id,info);
+    }
+    */
 }
 
 PARSER_END(jmm)
@@ -70,7 +292,7 @@ SKIP: {"/*" : MULTI_LINE_COMMENT}
 <MULTI_LINE_COMMENT> SKIP: {"*/" :DEFAULT}
 <MULTI_LINE_COMMENT> SKIP: {<~[]>}
 
-TOKEN:{<INTEGER:("-")?(["0"-"9"])+>}
+TOKEN:{<INTEGER:(["0"-"9"])+>}
 
 TOKEN: {"["}
 TOKEN: {"]"}
@@ -84,13 +306,14 @@ TOKEN: {")"}
 TOKEN: {"!"}
 TOKEN: {"*"}
 TOKEN: {"+"}
-TOKEN: {","}
 TOKEN: {"-"}
 TOKEN: {"/"}
-TOKEN: {";"}
 TOKEN: {"<"}
 TOKEN: {"="}
 TOKEN: {"&&"}
+
+TOKEN: {","}
+TOKEN: {";"}
 
 TOKEN: {"import"}
 TOKEN: {"class"}
@@ -118,7 +341,7 @@ TOKEN: {<FALSE:"false">}
 
 TOKEN:{<IDENTIFIER: ["_", "$", "a"-"z", "A"-"Z"] (["_", "$", "0"-"9", "a"-"z", "A"-"Z"])*>}
 
-SimpleNode Program()#PROG:{}{    
+SimpleNode Program()#PROG:{}{
     (ImportDeclaration())*
     ClassDeclaration()
     <EOF>
@@ -140,7 +363,7 @@ void ClassDeclaration()#CLASS:{}{
     "}"
 }
 
-void VarDeclaration()#VAR:{}{    
+void VarDeclaration()#VAR:{}{   
     Type() (ArrayOperation())? Identifier() ";"
 }
 
@@ -212,7 +435,7 @@ void Precedence1()#void:{}{
 
 void Precedence2()#void:{}{   
     Precedence1() (
-        LOOKAHEAD(2)
+        //LOOKAHEAD(2)
         CallOperation() | 
         SubscriptOperation() |       
         MemberOperation()
@@ -296,7 +519,7 @@ void ArrayOperation()#ARRAY(1):{}{
 }
 
 void CallOperation()#CALL(2):{}{
-    "(" Expression() ("," Expression())* #ARGS(true) ")"
+    "(" (Expression() ("," Expression())*)? #ARGS(true) ")"
 }
 
 void MemberOperation()#MEMBER(2):{}{
