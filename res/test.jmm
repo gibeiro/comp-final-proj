@@ -1,14 +1,25 @@
+<<<<<<< HEAD
 // TURN ON JAVA SYNTAX HIGHLIGHT FOR BEST EXPERIENCE.
+=======
+// this is a single line string
+>>>>>>> cc4135731d513ef8ca756a08eda82f3ca73c4600
 
 /*
 this is a multiline string
 */
 
 
+<<<<<<< HEAD
 import java.lang.System;
 
 class Fac {
     /*
+=======
+/*
+import java.lang.System;
+
+class Fac {
+>>>>>>> cc4135731d513ef8ca756a08eda82f3ca73c4600
     int num_aux;
 
     public int ComputeFac(int num){
@@ -21,8 +32,21 @@ class Fac {
     }
 
     public static void main(String[] args){
+<<<<<<< HEAD
         System.out.println((new Fac()).ComputeFac(10));
     }
     */
 
+=======
+        System.out.println(new Fac().ComputeFac(10));
+    }
+
+}
+*/
+
+class Test{
+    public static void main(String[] args){
+        7 <  2 *(3 + 4) /5 - 6 && true;
+    }
+>>>>>>> cc4135731d513ef8ca756a08eda82f3ca73c4600
 }

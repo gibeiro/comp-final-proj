@@ -39,14 +39,11 @@ public class jmm{
             System.out.print("Syntactic analysis ...");
             SyntacticAnalysis();
             System.out.print(" DONE!\n");
-            // root.dump("");
+            //root.dump("");
 
             // System.out.print("Semantic analysis ...");
             // SemanticAnalysis();
             // System.out.print(" DONE!\n");
-
-
-            
         } catch(Exception e){
             //e.printStackTrace();
             System.out.println(e.getMessage());
